@@ -279,7 +279,7 @@ if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_u
     dataframes = extract_and_read_csv(zip_file_bytes)
     
     # Display the DataFrames
-    st.session_state["💀DAY 1: MCC"].set_data(dataframes["DAY1MCC.csv"].drop('Unnamed: 0', axis=1))
+    st.session_state["💀DAY 1: MCC"].set_data(dataframes["DAY1MCC.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd1MCC = st.session_state["💀DAY 1: MCC"].names
     st.session_state["💀DAY 2: MCC"].set_data(dataframes["DAY2MCC.csv"].drop('Unnamed: 0', axis=1))
     st.session_state.namesd2MCC = st.session_state["💀DAY 2: MCC"].names
@@ -380,3 +380,5 @@ if hour_count["DAY 3"].iloc[-1] >=21:
       else:
             for w in warnings:
                   day3warnings.write(w)
+
+st.dataframe(st.session_state["💀DAY 1: MCC"].data.values)
