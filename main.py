@@ -10,7 +10,7 @@ import os
 st.set_page_config(page_title="Shift Planner",page_icon=":military_helmet:",layout="wide")
 st.title("Shift Planner")
 
-if "has_rerun_on_upload" not in st.session_state:
+if "has_rerun_on_upload" not in st.session_state: #used when uploading zip file to app
       st.session_state.has_rerun_on_upload = None
 
 #create sidebar that takes some inputs
@@ -98,6 +98,7 @@ with col2:
 #button groups
 
 def allocate_shift(hour): #call back function for buttons
+
       # set up appropriate timeblock to query
       main_time_block = hour + ":00:00" #actual time block e.g if left half @1200 > 1200/ right half > 1230
       other_time_block = hour+ ":30:00"  #other half if left half @1200, other half > 1230 etc.
@@ -141,6 +142,7 @@ def create_button_group():
     for n in range(n_buttons):
           with cols[n]:
                 st.button(label=time_range[n],use_container_width=True,on_click=allocate_shift,kwargs={"hour":time_range[n][:2]})
+
 if st.session_state.active_name != None:
       create_button_group()
 
@@ -182,22 +184,33 @@ def format_keys(df1,df2):
 
         return keys, joined
 
+def displayd1_grid():
+      print("d1grid running")
+      if not st.session_state.hided1_grid:
+            k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
+            st.dataframe(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+            st.dataframe(st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
 
-if not st.session_state.hided1_grid:
-      k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
-      st.dataframe(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
-      st.dataframe(st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+displayd1_grid()
 
-if not st.session_state.hided2_grid:
-      k,j = format_keys(st.session_state["💀DAY 2: MCC"].data,st.session_state["😴DAY 2: HCC1"].data)
-      st.dataframe(st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
-      st.dataframe(st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+
+def displayd2_grid():
+      if not st.session_state.hided2_grid:
+            k,j = format_keys(st.session_state["💀DAY 2: MCC"].data,st.session_state["😴DAY 2: HCC1"].data)
+            st.dataframe(st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+            st.dataframe(st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+      
+displayd2_grid()
 
 bottom_col1,bottom_col2 = st.columns([0.3,0.7])
 
-if not st.session_state.hided3_grid:
-      bottom_col2.dataframe(st.session_state["NIGHT DUTY"].generate_formatted_df(),hide_index=True,use_container_width=True)
+def displayd3_grid():
+      if not st.session_state.hided3_grid:
+            bottom_col2.dataframe(st.session_state["NIGHT DUTY"].generate_formatted_df(),hide_index=True,use_container_width=True)
 
+displayd3_grid()  
+
+#hour counter
 def display_hours():
       hours = {}
       d1MCC = st.session_state["💀DAY 1: MCC"].hours
@@ -281,21 +294,19 @@ if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_u
     # Display the DataFrames
     st.session_state["💀DAY 1: MCC"].set_data(dataframes["DAY1MCC.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd1MCC = st.session_state["💀DAY 1: MCC"].names
-    st.session_state["💀DAY 2: MCC"].set_data(dataframes["DAY2MCC.csv"].drop('Unnamed: 0', axis=1))
+    st.session_state["💀DAY 2: MCC"].set_data(dataframes["DAY2MCC.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd2MCC = st.session_state["💀DAY 2: MCC"].names
-    st.session_state["😴DAY 1: HCC1"].set_data(dataframes["DAY1HCC1.csv"].drop('Unnamed: 0', axis=1))
+    st.session_state["😴DAY 1: HCC1"].set_data(dataframes["DAY1HCC1.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd1HCC1 = st.session_state["😴DAY 1: HCC1"].names
-    st.session_state["😴DAY 2: HCC1"].set_data(dataframes["DAY2HCC1.csv"].drop('Unnamed: 0', axis=1))
+    st.session_state["😴DAY 2: HCC1"].set_data(dataframes["DAY2HCC1.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd2HCC1 = st.session_state["😴DAY 2: HCC1"].names
-    st.session_state["NIGHT DUTY"].set_data(dataframes["NIGHTDUTY.csv"].drop('Unnamed: 0', axis=1))
+    st.session_state["NIGHT DUTY"].set_data(dataframes["NIGHTDUTY.csv"].drop('Unnamed: 0', axis=1).replace(0,"0   "))
     st.session_state.namesd3 = st.session_state["NIGHT DUTY"].names
     st.session_state.D1Names = st.session_state.namesd1MCC.union(st.session_state.namesd1HCC1)
     st.session_state.D2Names = st.session_state.namesd2MCC.union(st.session_state.namesd2HCC1)
     st.session_state.D3Names = st.session_state.namesd3.copy()
     st.session_state.has_rerun_on_upload = True
     st.rerun()
-
-
 
 def create_zip():
       #takes all dataframes from each database, convert to csv, store as zip file
@@ -380,5 +391,3 @@ if hour_count["DAY 3"].iloc[-1] >=21:
       else:
             for w in warnings:
                   day3warnings.write(w)
-
-st.dataframe(st.session_state["💀DAY 1: MCC"].data.values)
