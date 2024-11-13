@@ -91,13 +91,13 @@ col1, col2 = st.columns(2)
 
 with col1:
       st.session_state.active_database = st.radio(label="Database",options=["💀DAY 1: MCC","😴DAY 1: HCC1","💀DAY 2: MCC","😴DAY 2: HCC1","NIGHT DUTY"],horizontal=True)
-      st.session_state.active_name = st.selectbox(label="Name",options=st.session_state[st.session_state.active_database].get_names())
+      st.session_state.active_name = st.multiselect(label="Name(s)",options=st.session_state[st.session_state.active_database].get_names())
 with col2:
       st.session_state.active_allocation_size = st_btn_group(mode="radio",buttons=[{"label":"First 30 min","value":"001"},{"label":"Full","value":"002"},{"label":"Last 30 min","value":"30"}],key="allocation_size",merge_buttons=True,size="compact",radio_default_index=1)
       st.session_state.active_location = st.radio(label="Location",options=["MCC ","HCC1"]) #whitespace after MCC for standard cell size
 #button groups
 
-def allocate_shift(hour): #call back function for buttons
+def allocate_shift(n,hour): #call back function for buttons
 
       # set up appropriate timeblock to query
       main_time_block = hour + ":00:00" #actual time block e.g if left half @1200 > 1200/ right half > 1230
@@ -105,43 +105,47 @@ def allocate_shift(hour): #call back function for buttons
       if st.session_state.active_allocation_size == "30":
             main_time_block,other_time_block = other_time_block,main_time_block #swap
       #check first if shift is allocated
-      allocation_state1 = st.session_state[st.session_state.active_database].is_shift_allocated(time_block=main_time_block,name = st.session_state.active_name)
+      allocation_state1 = st.session_state[st.session_state.active_database].is_shift_allocated(time_block=main_time_block,name = n)
       allocation_state2 = None
       if st.session_state.active_allocation_size == "002":
-            allocation_state2 = st.session_state[st.session_state.active_database].is_shift_allocated(other_time_block, name = st.session_state.active_name)
+            allocation_state2 = st.session_state[st.session_state.active_database].is_shift_allocated(other_time_block, name = n)
       #deal with allocation_state1
       if not allocation_state1: #if shift not allocated, allocate shift
-            st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = main_time_block,name = st.session_state.active_name)
+            st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = main_time_block,name = n)
       else: 
-            st.session_state[st.session_state.active_database].remove_shift(time_block = main_time_block,name = st.session_state.active_name)
+            st.session_state[st.session_state.active_database].remove_shift(time_block = main_time_block,name = n)
       
       if allocation_state2 != None:
             if not allocation_state2: #allocate other half for FULL SHIFT OPTION
-                  st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = other_time_block,name = st.session_state.active_name)
+                  st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = other_time_block,name = n)
             else:
-                  st.session_state[st.session_state.active_database].remove_shift(time_block = other_time_block,name = st.session_state.active_name)
+                  st.session_state[st.session_state.active_database].remove_shift(time_block = other_time_block,name = n)
+
+def allocate_all(hour):
+      for n in st.session_state.active_name:
+            allocate_shift(n,hour)
 
 def create_button_group():
     #set the time ranges first
     default_day_range = ["06","07","08","09","10","11","12","13","14","15","16","17","18","19","20"]
     if st.session_state.active_database == "NIGHT DUTY":
           default_day_range = ["21","22","23","00","01","02","03","04","05","06"]
-    time_range = None
+    time_range = ["06","07","08","09","10","11","12","13","14","15","16","17","18","19","20"]
+    if st.session_state.active_database in ["💀DAY 1: MCC","😴DAY 1: HCC1"]: #if day 1, remove 0600
+              default_day_range.pop(0)
     if st.session_state.active_allocation_size in ["001","002"]:
          time_range = [item + "00" for item in default_day_range]
          
     elif st.session_state.active_allocation_size in ["30"]:
           time_range  = [item + "30" for item in default_day_range]
 
-    if st.session_state.active_database in ["💀DAY 1: MCC","😴DAY 1: HCC1"]: #if day 1, remove 0600
-              time_range.pop(0)
     
     #create the buttons:
     n_buttons = len(time_range)
     cols = st.columns(n_buttons)
     for n in range(n_buttons):
           with cols[n]:
-                st.button(label=time_range[n],use_container_width=True,on_click=allocate_shift,kwargs={"hour":time_range[n][:2]})
+                st.button(label=time_range[n],use_container_width=True,on_click=allocate_all,kwargs={"hour":time_range[n][:2]})
 
 if st.session_state.active_name != None:
       create_button_group()
@@ -185,7 +189,6 @@ def format_keys(df1,df2):
         return keys, joined
 
 def displayd1_grid():
-      print("d1grid running")
       if not st.session_state.hided1_grid:
             k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
             st.dataframe(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
