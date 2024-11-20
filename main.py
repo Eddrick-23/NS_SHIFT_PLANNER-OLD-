@@ -8,7 +8,7 @@ import os
 
 
 st.set_page_config(page_title="Shift Planner",page_icon=":military_helmet:",layout="wide")
-st.title("Shift Planner")
+st.title("[Shift Planner](%s)" % "https://github.com/Eddrick-23/NS_SHIFT_PLANNER#ns-shift-planner")
 
 if "has_rerun_on_upload" not in st.session_state: #used when uploading zip file to app
       st.session_state.has_rerun_on_upload = None
@@ -57,6 +57,7 @@ def add_name(name):
       if n not in st.session_state[st.session_state.db_to_update].get_names() and n not in st.session_state[f"D{day}Names"]:
             st.session_state[st.session_state.db_to_update].add_name(n)
             st.session_state[f"D{day}Names"].add(n)
+            st.sidebar.success(f"{n} added!")
       else:
             st.sidebar.error("Name already exists!")
             
@@ -66,6 +67,7 @@ def remove_name(name_list):
       for n in name_list:
          st.session_state[st.session_state.db_to_update].remove_name(n)
          st.session_state[f"D{day}Names"].remove(n)
+         st.toast(f"{n} removed from {st.session_state.db_to_update}")
 
 
 #sidebar
@@ -79,7 +81,62 @@ if sidebar_col11.button("Submit"):
 name_list = sidebar_col12.multiselect(label="Choose names to remove",options=st.session_state[st.session_state.db_to_update].get_names())
 if sidebar_col12.button("Remove"):
       remove_name(name_list)
+st.sidebar.divider()
+def rename_all(new_name,old_name):
+      new_name = new_name.strip().upper()
+      if new_name in set().union(st.session_state.D1Names,st.session_state.D2Names,st.session_state.D3Names):
+            st.sidebar.warning(f"{new_name} already exists!")
+            return
+      #update the day name session states
+      for d in ["D1Names","D2Names","D3Names"]:
+            if old_name in st.session_state[d]:
+                  st.session_state[d].remove(old_name)
+                  st.session_state[d].add(new_name)
+      #update individual databases
+      for db in ["💀DAY 1: MCC","😴DAY 1: HCC1","💀DAY 2: MCC","😴DAY 2: HCC1","NIGHT DUTY"]:
+            if old_name in st.session_state[db].get_names():
+                  st.session_state[db].rename(new_name,old_name)
+      st.sidebar.success(f"Renamed {old_name} to {new_name}")
+st.sidebar.text("Rename") #rename a name across all databases
+new_name = st.sidebar.text_input("Enter New Name:")
+old_name = st.sidebar.selectbox(label="Old name",options=set().union(st.session_state.D1Names,st.session_state.D2Names,st.session_state.D3Names))
+st.sidebar.button(label="Rename",on_click=rename_all,kwargs={"new_name":new_name,"old_name":old_name})
 
+st.sidebar.divider()
+def name_in_same_database(names,database):
+      db_names = database.get_names()
+      if names[0] in db_names and names[1] in db_names:
+            return True #returns True if both names in current database
+      else: # returns the name that is not in the database
+            for n in names:
+                  if n not in db_names:
+                        return n
+def swap_names(names):
+      if st.session_state.day_for_swapping == 3:
+            st.session_state["NIGHT DUTY"].swap_names(names[0],names[1])
+      else:
+            mcc_db = st.session_state[f"💀DAY {st.session_state.day_for_swapping}: MCC"]
+            hcc1_db = st.session_state[f"😴DAY {st.session_state.day_for_swapping}: HCC1"]
+
+            mcc_check = name_in_same_database(names,database=mcc_db)
+            hcc1_check = name_in_same_database(names,database=hcc1_db)
+            #case 1 both names in mcc_db
+            if mcc_check == True:
+                  mcc_db.swap_names(names[0],names[1])
+            #case 2 both names in hcc1_db
+            elif hcc1_check == True:
+                  hcc1_db.swap_names(names[0],names[1])
+            #case 3 both names in different database
+            else:
+                  mcc_db.rename(new_name = mcc_check,old_name = hcc1_check)
+                  hcc1_db.rename(new_name = hcc1_check,old_name = mcc_check)
+
+st.sidebar.write("Swap names")
+st.session_state.day_for_swapping = st.sidebar.radio(label="DAY",options=[1,2,3],horizontal=True)
+st.session_state.names_to_swap = st.sidebar.multiselect(label="Choose 2 names",options=st.session_state[f"D{st.session_state.day_for_swapping}Names"],max_selections=2)
+if len(st.session_state.names_to_swap) == 2:
+      st.sidebar.button(label="Swap",on_click=swap_names,kwargs={"names":st.session_state.names_to_swap})
+st.sidebar.divider()
 
 st.session_state.hided1_grid = st.sidebar.toggle("Hide DAY 1 grid")
 st.session_state.hided2_grid = st.sidebar.toggle("Hide DAY 2 grid")
@@ -147,7 +204,7 @@ def create_button_group():
           with cols[n]:
                 st.button(label=time_range[n],use_container_width=True,on_click=allocate_all,kwargs={"hour":time_range[n][:2]})
 
-if st.session_state.active_name != None:
+if st.session_state.active_name != []:
       create_button_group()
 
 #displaying dataframes
@@ -205,7 +262,7 @@ def displayd2_grid():
       
 displayd2_grid()
 
-bottom_col1,bottom_col2 = st.columns([0.3,0.7])
+bottom_col1,bottom_col2 = st.columns([0.2,0.8])
 
 def displayd3_grid():
       if not st.session_state.hided3_grid:
@@ -249,15 +306,22 @@ def display_hours():
             val.append(sum(val))
       
       df = pd.DataFrame(data=hours,index=["DAY 1","DAY 2","DAY 3","TOTAL"]).T
+      df = df.sort_values(by=["TOTAL"],ascending=False)
       df.loc["total"] = df.sum()
       
       
       return df
 
 hour_count = display_hours()
-      
-bottom_col1.dataframe(hour_count)
 
+st.session_state.hour_count_on_sidebar = st.sidebar.toggle(label="Display hour count on sidebar",value=True)
+if st.session_state.hour_count_on_sidebar:
+      st.sidebar.dataframe(hour_count,use_container_width=True)
+      bottom_col1.header("NIGHT DUTY")
+else:     
+      bottom_col1.dataframe(hour_count,use_container_width=True)
+
+st.sidebar.divider()
 #uploading and downloading files
 
 # Function to extract and read CSV files from the zip archive

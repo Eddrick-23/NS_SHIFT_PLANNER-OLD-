@@ -71,6 +71,40 @@ class database():
         self.names.remove(upper_name)
         del self.hours[name]
     
+    def rename(self,new_name,old_name):
+        '''
+            new_name(str):
+                New name. Name will be formatted to upper case. Name must not currently exist
+            old_name(str):
+                Old name. Name will be formatted to upper case. Name must not currently exist
+            
+            ===========================================================================
+            Method is used when swapping names between databases
+        '''
+        if new_name in self.names:
+            print("New Name already exists")
+            return
+        if old_name not in self.names:
+            print("Old name does not exist")
+            return
+        
+        #update database column name
+        self.data = self.data.rename(columns={old_name:new_name})
+        
+        #update the name hour_count
+        self.hours[new_name] = self.hours.pop(old_name)
+        #update the name set
+        self.names.remove(old_name)
+        self.names.add(new_name)
+
+    def swap_names(self,name1,name2):
+        '''
+            swaps the names of two existing columns
+        '''
+        self.data = self.data.rename(columns={name1:name2,name2:name1})
+        self.hours[name1],self.hours[name2] = self.hours[name2],self.hours[name1] #swap the hour count
+            
+
     def is_shift_allocated(self,time_block, name):
         '''
             time_block(str):
