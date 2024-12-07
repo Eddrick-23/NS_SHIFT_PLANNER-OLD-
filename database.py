@@ -22,12 +22,21 @@ class database():
             self.data = data
         
     def load_data(self):
+        '''
+            loads the raw format for the database
+        '''
         df = pd.read_csv("raw.csv")
         df = df[df["DAY"] == self.day]
         df = df.reset_index(drop=True)
         self.data = df
         
     def set_data(self,data):
+        '''
+            Method is called when loading previously stored data
+            ====================================================
+            data(pandas dataframe object):
+                Previously stored dataframe
+        '''
         self.data = data
         self.names = set(data.columns[2:].tolist())
         #update the hours
@@ -50,7 +59,7 @@ class database():
     def get_names(self):
         return self.names.copy()
     
-    def add_name(self, name):
+    def add_name(self, name, shifts = [],hours = 0):
         '''
             name(str):
                 Name will be formatted to upper case
@@ -58,8 +67,11 @@ class database():
         '''
         upper_name = name.upper()
         self.names.add(upper_name)
-        self.data[upper_name] = ["0   "] * len(self.data.index) # each cell is 4 characters long
-        self.hours[name] = 0
+        if shifts == []:
+            self.data[upper_name] = ["0   "] * len(self.data.index) # each cell is 4 characters long
+        else:
+            self.data[upper_name] = shifts
+        self.hours[name] = hours
 
     def remove_name(self, name):
         '''
@@ -67,19 +79,22 @@ class database():
                 Name will be formatted to upper case
         '''
         upper_name = name.upper()
+        d = self.data[upper_name].to_list()
         self.data.drop(upper_name,axis=1, inplace = True)
         self.names.remove(upper_name)
+        h = self.hours[name]
         del self.hours[name]
+        return {"data":d,"hours":h}
     
     def rename(self,new_name,old_name):
         '''
+            Method is used when swapping names between databases/renaming column names
+            ==========================================================================
             new_name(str):
                 New name. Name will be formatted to upper case. Name must not currently exist
             old_name(str):
                 Old name. Name will be formatted to upper case. Name must not currently exist
-            
-            ===========================================================================
-            Method is used when swapping names between databases
+
         '''
         if new_name in self.names:
             print("New Name already exists")
@@ -127,9 +142,12 @@ class database():
         '''
         if self.day == 3:
             location = "MCC " #default location for night duty
-
+        if not self.is_shift_allocated(time_block=time_block,name=name): #update hours only if shift previously not allocated, else just replace loc
+            self.hours[name] += 0.5
+        elif self.is_shift_allocated and location == "0   ": # custom replacement to empty shift
+            self.hours[name] -= 0.5
         self.data.loc[(self.data.Time == time_block), name.upper()] = location
-        self.hours[name] += 0.5
+        
 
     def remove_shift(self, time_block,name):
         '''
@@ -140,9 +158,22 @@ class database():
         '''
         self.data.loc[(self.data.Time == time_block), name.upper()] = "0   "
         self.hours[name] -= 0.5
+        
     
+    def get_shift_location(self,time_block,name):
+        '''
+            time_block(str):
+                str in "HH:MM:SS" Format. In 30 min intervals
+            name(str):
+                name of person. Must already exist in column
+        '''
+        return self.data.loc[(self.data.Time == time_block), name.upper()].iloc[0]
+        
 
     def format_keys(self):
+        '''
+            formatting function, called for database where self.day = 3 (Night duty days)
+        '''
         keys = []
         joined = []
         #iterate over df two rows at a time
@@ -169,7 +200,10 @@ class database():
 
         return keys, joined 
     
-    def check_lunch_and_dinner(self):
+    def check_lunch_and_dinner(self,s):
+        '''
+            helper function. Returns names of people who do not have a lunch or dinner break
+        '''
         #checks if someone has no lunch/dinner break.
         #names will be returned in an array
 
@@ -185,34 +219,47 @@ class database():
         for c in dinner.columns[2:]: #check dinner
             if c not in result and "0   " not in dinner[c].array:
                 result.add(c)
-        return result
+        
+        styles = pd.DataFrame('', index=s.index, columns=s.columns)
+        for row in range(len(s)):
+            if s.iloc[row,0] in result: # check if name needs to be highlighted
+                styles.iloc[row,0] = 'background-color: red;'
+
+
+        return styles
         
     def highlight_cells(self,s):
+        '''
+            helper function for generate_formatted_df
+        '''
         # Create an empty DataFrame to hold the styles
         styles = pd.DataFrame('', index=s.index, columns=s.columns)
-        names_to_highlight = None
-        if self.day == 1 or self.day == 2:
-            names_to_highlight = self.check_lunch_and_dinner()
+        # names_to_highlight = None
+        # if self.day == 1 or self.day == 2:
+        #         names_to_highlight = self.check_lunch_and_dinner()
         
         for col in s.columns:
             for row in range(len(s)):
                 if s[col][row] == "MCC " or s[col][row] == "HCC1" :
                     styles.at[row,col] = 'background-color: green;'
                 
-                elif names_to_highlight != None and s[col][row] in names_to_highlight:
-                    styles.at[row,col] = 'background-color: red;'
+                # elif names_to_highlight != None and s[col][row] in names_to_highlight:
+                #     styles.at[row,col] = 'background-color: red;'
                 else:
                     styles.at[row,col] = 'background-color: white'
         return styles
     def highlight_values(self,val):
-        
+        '''
+            helper function for generate_formatted_df()
+        '''
         if val == self.location:
             return 'color: green'
         elif val == "0   ":
             return 'color: white'
         else:
             return 'color: black'
-    def generate_formatted_df(self,keys =None, joined = None):
+        
+    def generate_formatted_df(self,keys =None, joined = None, check_lunch_dinner = True):
         #if no formatting given, use class method
         if not (keys and joined):
             keys,joined = self.format_keys() #get formatted keys with joined time blocks
@@ -256,6 +303,8 @@ class database():
 
         #format the dataframe
         styled_df = df.style.apply(self.highlight_cells, axis=None)
+        if check_lunch_dinner:
+            styled_df = styled_df.apply(self.check_lunch_and_dinner, axis=None)
         styled_df.map(self.highlight_values)
 
         return styled_df

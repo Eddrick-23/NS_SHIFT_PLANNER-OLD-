@@ -12,6 +12,11 @@ Update 0.2 (19/11/24)
 - Added option to move hour count grid to the sidebar
 - Hour count grid now displays in descending order by total hours, by defualt
 
+Update 0.3 (7/12/24)
+- Fixed bug where dataframes would appear stretched when the hide toggle is enabled.
+- Added option to disable lunch and dinner break checks.
+
+
 ## Notes
 - This website is hosted on the free streamlit community cloud server. The app may go to sleep after a couple minutes of inactivity, **any unsaved work will disappear!**
 - If you are going away from the computer, please [save](#saving-your-work) your progress. Sorry, I'm just a broke CPL 🫡
@@ -48,6 +53,9 @@ Update 0.2 (19/11/24)
     - At the bottom of the main page there are 3 columns Day 1, Day 2 and Day 3.
     - The validation activates only when all shifts are allocated I.e. Day 1: 56hrs allocated, Day 2: 60 hrs allocated, Day 3: 21hrs allocated.
     - validation checks that there are 2 people mounting in each control centre at the same time. And also at least 3 people for HOTO @ 0600-0700 on day 3.
+- Allowing more than 4 mounting personnel at once
+    - clicking the **ignore overallocation** checkbox allows for more than 4 mounting personnel in total (algorithm will not output a warning)
+    - This allows for cases where new personnel are shadowing and are not counted as strength.
 ### Saving your work
 - Click the **Download Zip** button on the bottom of the sidebar.
 - You will download a zip file called "Planning.zip"

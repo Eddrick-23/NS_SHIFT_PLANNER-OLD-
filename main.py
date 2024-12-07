@@ -141,7 +141,7 @@ st.sidebar.divider()
 st.session_state.hided1_grid = st.sidebar.toggle("Hide DAY 1 grid")
 st.session_state.hided2_grid = st.sidebar.toggle("Hide DAY 2 grid")
 st.session_state.hided3_grid = st.sidebar.toggle("Hide DAY 3 grid")
-
+st.session_state.check_lunch_dinner = not st.sidebar.toggle("Disable Lunch & Dinner Check", value=False)
 #back to main page
 
 col1, col2 = st.columns(2)
@@ -199,7 +199,8 @@ def create_button_group():
     
     #create the buttons:
     n_buttons = len(time_range)
-    cols = st.columns(n_buttons)
+    buttons,_ = st.columns([0.99,0.01])
+    cols = buttons.columns(n_buttons)
     for n in range(n_buttons):
           with cols[n]:
                 st.button(label=time_range[n],use_container_width=True,on_click=allocate_all,kwargs={"hour":time_range[n][:2]})
@@ -245,11 +246,12 @@ def format_keys(df1,df2):
 
         return keys, joined
 
+
 def displayd1_grid():
       if not st.session_state.hided1_grid:
             k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
-            st.dataframe(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
-            st.dataframe(st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+            st.data_editor(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
+            st.data_editor(st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled = True)
 
 displayd1_grid()
 
@@ -257,8 +259,8 @@ displayd1_grid()
 def displayd2_grid():
       if not st.session_state.hided2_grid:
             k,j = format_keys(st.session_state["💀DAY 2: MCC"].data,st.session_state["😴DAY 2: HCC1"].data)
-            st.dataframe(st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
-            st.dataframe(st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j),hide_index=True,use_container_width=True)
+            st.data_editor(st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
+            st.data_editor(st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
       
 displayd2_grid()
 
@@ -266,13 +268,13 @@ bottom_col1,bottom_col2 = st.columns([0.2,0.8])
 
 def displayd3_grid():
       if not st.session_state.hided3_grid:
-            bottom_col2.dataframe(st.session_state["NIGHT DUTY"].generate_formatted_df(),hide_index=True,use_container_width=True)
+            bottom_col2.data_editor(st.session_state["NIGHT DUTY"].generate_formatted_df(),hide_index=True,use_container_width=True,disabled=True)
 
 displayd3_grid()  
 
 #hour counter
 def display_hours():
-      hours = {}
+      hours = {} 
       d1MCC = st.session_state["💀DAY 1: MCC"].hours
       d1HCC1 = st.session_state["😴DAY 1: HCC1"].hours
       d2MCC = st.session_state["💀DAY 2: MCC"].hours
@@ -307,8 +309,7 @@ def display_hours():
       
       df = pd.DataFrame(data=hours,index=["DAY 1","DAY 2","DAY 3","TOTAL"]).T
       df = df.sort_values(by=["TOTAL"],ascending=False)
-      df.loc["total"] = df.sum()
-      
+      df.loc[" TOTAL  "] = df.sum() # add whitespace so this row will always be either first or last in sorting
       
       return df
 
@@ -316,7 +317,7 @@ hour_count = display_hours()
 
 st.session_state.hour_count_on_sidebar = st.sidebar.toggle(label="Display hour count on sidebar",value=True)
 if st.session_state.hour_count_on_sidebar:
-      st.sidebar.dataframe(hour_count,use_container_width=True)
+      st.sidebar.dataframe(hour_count,use_container_width=True,)
       bottom_col1.header("NIGHT DUTY")
 else:     
       bottom_col1.dataframe(hour_count,use_container_width=True)
@@ -391,7 +392,7 @@ def create_zip():
 
 st.sidebar.download_button(label="Download zip",data=create_zip().getvalue(),file_name="Planning.zip",mime="data/zip",use_container_width=True)
 
-day1warnings,day2warnings,day3warnings = st.columns(3)
+day1warnings,day2warnings,day3warnings,validation_options = st.columns((.3,.3,.3,.1))
 
 def validate_shifts(df1,df2,day):
       '''
@@ -413,7 +414,7 @@ def validate_shifts(df1,df2,day):
                         result.append(f"WARNING(MISALLOCATION): At {row.Time}. HCC1:{freq_data.HCC1}. No one in MCC.")
                   elif freq_data["MCC "] + freq_data.HCC1 < 4: # Check if insufficient strength
                         result.append(f"WARNING(INSUFFICIENT STRENGTH): At {row.Time}. MCC:{freq_data['MCC ']}, HCC1:{freq_data.HCC1}")
-                  elif freq_data.HCC1 != 2 or freq_data["MCC "] != 2: # Check if either MCC or HCC1 not exactly 2
+                  elif (freq_data.HCC1 != 2 or freq_data["MCC "] != 2) and not(st.session_state.ignore_overallocation): # Check if either MCC or HCC1 not exactly 2
                         result.append(f"WARNING(MISALLOCATION): At {row.Time}. MCC:{freq_data['MCC ']}, HCC1:{freq_data.HCC1}")
       elif day == 3:
             for idx,row in df1.iterrows():
@@ -430,6 +431,7 @@ def validate_shifts(df1,df2,day):
 day1warnings.text("DAY 1")
 day2warnings.text("DAY 2")
 day3warnings.text("DAY 3")
+st.session_state.ignore_overallocation = validation_options.checkbox(label="ignore overallocation")
 
 if hour_count["DAY 1"].iloc[-1] >= 56:
       warnings = validate_shifts(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data,day=1)
