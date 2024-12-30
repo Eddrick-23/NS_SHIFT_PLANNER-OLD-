@@ -1,21 +1,36 @@
 # [NS SHIFT PLANNER](https://nsplanner.streamlit.app/)
 
 ## Updates
-Update 0.1 (13/11/24)
+Update 0.1.0 (13/11/24)
 - Replaced name selection for shift allocation to be a multi select widget
 - Users can now allocate shifts to more than one person at a time
 - Fixed minor exception handling during app running process
 
-Update 0.2 (19/11/24)
+Update 0.2.0 (19/11/24)
 - Added feature to rename a name across all databases
 - Added feature to swap names within databases on the same day
 - Added option to move hour count grid to the sidebar
 - Hour count grid now displays in descending order by total hours, by defualt
 
-Update 0.3 (7/12/24)
+Update 0.3.0 (7/12/24)
 - Fixed bug where dataframes would appear stretched when the hide toggle is enabled.
 - Added option to disable lunch and dinner break checks.
 
+Update 1.0.0 (30/12/24)
+- Added undo and redo feature
+- Added option to allow shift validation to ignore overallocation(i.e. more than 4 people mounting at once).
+- Changed behavior of full shift allocation
+    - When either half of the hour is allocated, allocating a full shift will now allocate the full hour.
+    - Allocating a full shift when the full hour is allocated will then deallocate the entire hour.
+    - Note that the location of the already allocated half will be overriden to the currently set location.
+        > **_Example:_**  
+        [HCC1][] -(full allocation,location = MCC)-> [MCC][MCC] <br>
+        [MCC][MCC] -(full allocation)-> [][]
+- Button groups for shift allocation now toggle between disabled and active state. They are only redrawn when a different set of button groups are required.
+- Added option for d2 to start at 0700 hrs. Note that the 0600 - 0700 time block will only be hidden when there are no shifts allocated in that time block. (This is for formatting purposes)
+- Added name pool to allow adding and removing names from a common name pool. This is so that users only need to type the names once. **Removing names from the name pool however, will not remove the names from the databases(They will still be present on the grid).** Interactions with the name pool will not be tracked by undo/redo.
+- Added option to start day 2 on 0700 hours. This will remove the column for 0600 (Only if no shift is allocated from 0600-0700 hrs)
+- Added option to disable lunch and dinner checking.
 
 ## Notes
 - This website is hosted on the free streamlit community cloud server. The app may go to sleep after a couple minutes of inactivity, **any unsaved work will disappear!**

@@ -7,13 +7,36 @@ import io
 import os
 
 
+
+
+
+
 st.set_page_config(page_title="Shift Planner",page_icon=":military_helmet:",layout="wide")
 st.title("[Shift Planner](%s)" % "https://github.com/Eddrick-23/NS_SHIFT_PLANNER#ns-shift-planner")
+
+if "has_read_popup" not in st.session_state:
+      st.session_state.has_read_popup = 0
+
+@st.dialog("READ ME")
+def readme():
+      st.subheader("Please **save** your work if you are going afk for at least 5-7 mins. The app WILL go to sleep and you will lose your progress. \n Sorry I'm too broke to pay for a database to autosave your work :/")
+      st.write("Click on the **[download zip]** button to save your work as a zip file")
+      st.write("**Upload** the zip file to continue your work")
+      
+      st.write("Clicking the 'SHIFT PLANNER' title brings you to a readme")
+      if st.button("Okay",use_container_width=True):
+            st.session_state.has_read_popup = True
+            st.rerun()
+if not st.session_state.has_read_popup:
+      readme()
 
 if "has_rerun_on_upload" not in st.session_state: #used when uploading zip file to app
       st.session_state.has_rerun_on_upload = None
 
-#create sidebar that takes some inputs
+if "undo_stack" not in st.session_state: #track functions to undo
+      st.session_state.undo_stack = [] # ("function name", parameter(s)) ->> if multiple parameters, will be stored in dictionary
+if "redo_stack" not in st.session_state: # track functions to redo
+      st.session_state.redo_stack = []
 
 #load the database names
 
@@ -46,47 +69,154 @@ if "D2Names" not in st.session_state:
 if "D3Names" not in st.session_state:
       st.session_state.D3Names = set()
 
+#session state to check last updated day, days that are not updated will used cached results from format_keys()
+if "last_updated_day" not in st.session_state:
+      st.session_state.last_updated_day = 4 # 4 default, rerun formatting for all days, else rerun for specified day, 0 no need rerun formatting, used cached results
 
-def add_name(name):
+def update_LUD(active_database=None, custom=None):
+      if custom != None:
+            st.session_state.last_updated_day = custom
+            return
+      match st.session_state[active_database].day:
+            case 1:
+                  st.session_state.last_updated_day = 1
+            case 2:
+                  st.session_state.last_updated_day = 2
+            case 3:
+                  st.session_state.last_updated_day = 3
+            case _:
+                  print("No matching database")
+
+if "name_pool" not in st.session_state:
+      st.session_state.name_pool = set()
+
+def add_to_name_pool(name):
       n = name.strip().upper()
-      day = st.session_state[st.session_state.db_to_update].day
 
       if n == "HCC1" or n == "MCC": #Invalid name as control centre location
-            st.sidebar.error("Invalid name!")
-
-      if n not in st.session_state[st.session_state.db_to_update].get_names() and n not in st.session_state[f"D{day}Names"]:
-            st.session_state[st.session_state.db_to_update].add_name(n)
-            st.session_state[f"D{day}Names"].add(n)
-            st.sidebar.success(f"{n} added!")
-      else:
-            st.sidebar.error("Name already exists!")
-            
-def remove_name(name_list):
-      day = st.session_state[st.session_state.db_to_update].day
-
+            expander.warning("Invalid name!",icon=":material/error:")
+            return
+      if n in st.session_state.name_pool:
+            expander.warning(f"{n} already exists!",icon=":material/error:")
+            return
+      st.session_state.name_pool.add(n)
+      expander.success(f"Added {n}!")
+def remove_from_name_pool(name_list):
       for n in name_list:
-         st.session_state[st.session_state.db_to_update].remove_name(n)
-         st.session_state[f"D{day}Names"].remove(n)
-         st.toast(f"{n} removed from {st.session_state.db_to_update}")
+            st.session_state.name_pool.remove(n)    
+      expander.success(f"Removed {name_list}!")  
 
+expander = st.sidebar.expander("Name pool")
+if st.session_state.name_pool == set():
+      expander.subheader(f"All current names: None")
+else:
+      name_df = pd.DataFrame(data=st.session_state.name_pool,columns=["Names"])
+      expander.subheader(f"All current names:")
+      expander.dataframe(name_df,hide_index=True,use_container_width=True)
+adding,removing = expander.columns(2)
+
+name_add_to_pool = adding.text_input("Add name")
+name_remove_from_pool = removing.multiselect("Remove name(s)",options=st.session_state.name_pool)
+
+
+add_pool_button =  adding.button("Add name",on_click=add_to_name_pool,kwargs={"name":name_add_to_pool},use_container_width=True)
+      
+remove_pool_button = removing.button("Remove name(s)",on_click=remove_from_name_pool,kwargs={"name_list":name_remove_from_pool},use_container_width=True)
+
+
+
+def add_name(name,update_stacks = "default",db = None,shifts = [],hours = 0,restore = None):
+      
+      active_db = st.session_state.db_to_update
+      if db != None:
+            active_db = db
+      
+      day = st.session_state[active_db].day
+      
+      update_LUD(active_db)
+      parameters = {} # {name: {data:d,hours:h},...}
+      if restore == None:
+            for n in name:
+                  st.session_state[active_db].add_name(name = n, shifts = shifts,hours = hours)
+                  st.session_state[f"D{day}Names"].add(n)
+                  parameters[n] = {"db":active_db,"shifts":shifts,"hours":hours}
+      else: #we pass in custom data to restore from undo/redo call
+            for n in restore.keys():
+                  st.session_state[active_db].add_name(name = n, shifts = restore[n]["data"],hours = restore[n]["hours"])
+                  st.session_state[f"D{day}Names"].add(n)
+                  parameters[n] = {"db":active_db,"shifts":shifts,"hours":hours}
+
+      if update_stacks in ["undo","default"]:
+            st.session_state.undo_stack.append(("add_name",parameters))
+            if update_stacks == "default":
+                  st.session_state.redo_stack = [] #reset redo stack on new user input
+      elif update_stacks == "redo":
+            st.session_state.redo_stack.append(("remove_name",{"db":active_db,"name":list(parameters.keys())}))
+            
+def remove_name(name_list,update_stacks = "default",db = None):
+      active_db = st.session_state.db_to_update
+      if db != None:
+            active_db = db
+      
+      update_LUD(active_db)
+
+      day = st.session_state[active_db].day
+      parameters = {} # {name: {data:d,hours:h},...}
+      for n in name_list:
+            parameters[n] = st.session_state[active_db].remove_name(n)
+            st.session_state[f"D{day}Names"].remove(n)
+            st.toast(f"{n} removed from {active_db}",icon=":material/check_circle:")
+
+      if update_stacks in ["undo","default"]:
+            st.session_state.undo_stack.append(("remove_name",{"db":active_db,"params":parameters}))
+            if update_stacks == "default": 
+                  st.session_state.redo_stack = [] #reset redo_stack on new user input
+      elif update_stacks == "redo":
+            st.session_state.redo_stack.append(("add_name",{"db":active_db,"params":parameters}))
 
 #sidebar
 st.session_state.db_to_update = st.sidebar.radio("Database",options=["💀DAY 1: MCC","😴DAY 1: HCC1","💀DAY 2: MCC","😴DAY 2: HCC1","NIGHT DUTY"],key="sidebaractivedb",horizontal=True)
 
 sidebar_col11,sidebar_col12 = st.sidebar.columns(2)
 
-name = sidebar_col11.text_input("Enter Name:")
-if sidebar_col11.button("Submit"):
+def generate_options():
+      '''
+            returns a set of names that can be added to a specific database
+      '''
+
+      day_num = st.session_state[st.session_state.db_to_update].day
+
+      # get all available names in that day
+      names_in_day = st.session_state[f"D{day_num}Names"]
+
+      # get all names in current database
+      names_in_db = st.session_state[st.session_state.db_to_update].get_names()
+
+      # return the set of names that can be added
+      return st.session_state.name_pool - names_in_day.union(names_in_db)
+
+
+
+name = sidebar_col11.multiselect("Choose names to add",options=generate_options())
+if sidebar_col11.button("Submit",use_container_width=True):
       add_name(name)
 name_list = sidebar_col12.multiselect(label="Choose names to remove",options=st.session_state[st.session_state.db_to_update].get_names())
-if sidebar_col12.button("Remove"):
+if sidebar_col12.button("Remove",use_container_width=True):
       remove_name(name_list)
 st.sidebar.divider()
-def rename_all(new_name,old_name):
+def rename_all(new_name,old_name,update_stacks = "default"):
+
+      st.session_state.last_updated_day = 4 #redraw all as we update names across multiple databases
+
       new_name = new_name.strip().upper()
       if new_name in set().union(st.session_state.D1Names,st.session_state.D2Names,st.session_state.D3Names):
-            st.sidebar.warning(f"{new_name} already exists!")
+            st.toast(f"{new_name} already exists!",icon=":material/warning:")
             return
+      #update the Name Pool
+      st.session_state.name_pool.remove(old_name)
+      st.session_state.name_pool.add(new_name)
+
+
       #update the day name session states
       for d in ["D1Names","D2Names","D3Names"]:
             if old_name in st.session_state[d]:
@@ -96,11 +226,21 @@ def rename_all(new_name,old_name):
       for db in ["💀DAY 1: MCC","😴DAY 1: HCC1","💀DAY 2: MCC","😴DAY 2: HCC1","NIGHT DUTY"]:
             if old_name in st.session_state[db].get_names():
                   st.session_state[db].rename(new_name,old_name)
-      st.sidebar.success(f"Renamed {old_name} to {new_name}")
+
+      #update call stack
+      if update_stacks in ["undo","default"]:
+            st.session_state.undo_stack.append(("rename_all",{"new_name":new_name,"old_name":old_name}))
+            if update_stacks == "default":
+                  st.session_state.redo_stack = []
+      elif update_stacks == 'redo':
+            st.session_state.redo_stack.append(("rename_all",{"new_name":new_name,"old_name":old_name}))
+
+      st.toast(f"Renamed {old_name} to {new_name}", icon=":material/check_circle:")
+
 st.sidebar.text("Rename") #rename a name across all databases
 new_name = st.sidebar.text_input("Enter New Name:")
 old_name = st.sidebar.selectbox(label="Old name",options=set().union(st.session_state.D1Names,st.session_state.D2Names,st.session_state.D3Names))
-st.sidebar.button(label="Rename",on_click=rename_all,kwargs={"new_name":new_name,"old_name":old_name})
+st.sidebar.button(label="Rename",on_click=rename_all,kwargs={"new_name":new_name,"old_name":old_name},use_container_width=True)
 
 st.sidebar.divider()
 def name_in_same_database(names,database):
@@ -111,12 +251,16 @@ def name_in_same_database(names,database):
             for n in names:
                   if n not in db_names:
                         return n
-def swap_names(names):
-      if st.session_state.day_for_swapping == 3:
+def swap_names(names,day_for_swapping=None,update_stacks = "default"):
+      st.session_state.last_updated_day = 4 #redraw all as we can swap names across databases
+      day = st.session_state.day_for_swapping
+      if day_for_swapping != None:
+            day = day_for_swapping
+      if day == 3:
             st.session_state["NIGHT DUTY"].swap_names(names[0],names[1])
       else:
-            mcc_db = st.session_state[f"💀DAY {st.session_state.day_for_swapping}: MCC"]
-            hcc1_db = st.session_state[f"😴DAY {st.session_state.day_for_swapping}: HCC1"]
+            mcc_db = st.session_state[f"💀DAY {day}: MCC"]
+            hcc1_db = st.session_state[f"😴DAY {day}: HCC1"]
 
             mcc_check = name_in_same_database(names,database=mcc_db)
             hcc1_check = name_in_same_database(names,database=hcc1_db)
@@ -130,18 +274,29 @@ def swap_names(names):
             else:
                   mcc_db.rename(new_name = mcc_check,old_name = hcc1_check)
                   hcc1_db.rename(new_name = hcc1_check,old_name = mcc_check)
+      
+      if update_stacks in ["default","undo"]:
+            st.session_state.undo_stack.append(("swap_names",{"day_for_swapping":day,"names":names}))
+            if update_stacks == "default":
+                  st.session_state.redo_stack = [] #reset redo stack on new user input
+      elif update_stacks == "redo":
+            st.session_state.redo_stack.append(("swap_names",{"day_for_swapping":day,"names":names}))
 
 st.sidebar.write("Swap names")
+
 st.session_state.day_for_swapping = st.sidebar.radio(label="DAY",options=[1,2,3],horizontal=True)
 st.session_state.names_to_swap = st.sidebar.multiselect(label="Choose 2 names",options=st.session_state[f"D{st.session_state.day_for_swapping}Names"],max_selections=2)
+
 if len(st.session_state.names_to_swap) == 2:
-      st.sidebar.button(label="Swap",on_click=swap_names,kwargs={"names":st.session_state.names_to_swap})
+      st.sidebar.button(label="Swap",on_click=swap_names,kwargs={"names":st.session_state.names_to_swap},use_container_width=True)
 st.sidebar.divider()
 
-st.session_state.hided1_grid = st.sidebar.toggle("Hide DAY 1 grid")
-st.session_state.hided2_grid = st.sidebar.toggle("Hide DAY 2 grid")
-st.session_state.hided3_grid = st.sidebar.toggle("Hide DAY 3 grid")
-st.session_state.check_lunch_dinner = not st.sidebar.toggle("Disable Lunch & Dinner Check", value=False)
+st.session_state.d2start07 = st.sidebar.toggle("Day 2 starts at 0700", on_change= update_LUD,kwargs={"custom":2})
+st.session_state.check_lunch_dinner = not st.sidebar.toggle("Disable Lunch & Dinner Check", value=False,on_change=update_LUD,kwargs={"custom":4})
+st.session_state.hided1_grid = st.sidebar.toggle("Hide DAY 1 grid",on_change=update_LUD,kwargs={"custom":1})
+st.session_state.hided2_grid = st.sidebar.toggle("Hide DAY 2 grid",on_change=update_LUD,kwargs={"custom":2})
+st.session_state.hided3_grid = st.sidebar.toggle("Hide DAY 3 grid",on_change=update_LUD,kwargs={"custom":3})
+
 #back to main page
 
 col1, col2 = st.columns(2)
@@ -154,33 +309,91 @@ with col2:
       st.session_state.active_location = st.radio(label="Location",options=["MCC ","HCC1"]) #whitespace after MCC for standard cell size
 #button groups
 
-def allocate_shift(n,hour): #call back function for buttons
-
+def allocate_shift(n,hour,allocation_size,db,loc): #call back function for buttons
       # set up appropriate timeblock to query
       main_time_block = hour + ":00:00" #actual time block e.g if left half @1200 > 1200/ right half > 1230
-      other_time_block = hour+ ":30:00"  #other half if left half @1200, other half > 1230 etc.
-      if st.session_state.active_allocation_size == "30":
+      other_time_block = hour+ ":30:00"  #other half if left half @1200, other half = 1230 etc.
+      if allocation_size[0] == "30":
             main_time_block,other_time_block = other_time_block,main_time_block #swap
       #check first if shift is allocated
-      allocation_state1 = st.session_state[st.session_state.active_database].is_shift_allocated(time_block=main_time_block,name = n)
+      allocation_state1 = st.session_state[db].is_shift_allocated(time_block=main_time_block,name = n)
       allocation_state2 = None
-      if st.session_state.active_allocation_size == "002":
-            allocation_state2 = st.session_state[st.session_state.active_database].is_shift_allocated(other_time_block, name = n)
-      #deal with allocation_state1
-      if not allocation_state1: #if shift not allocated, allocate shift
-            st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = main_time_block,name = n)
-      else: 
-            st.session_state[st.session_state.active_database].remove_shift(time_block = main_time_block,name = n)
-      
-      if allocation_state2 != None:
-            if not allocation_state2: #allocate other half for FULL SHIFT OPTION
-                  st.session_state[st.session_state.active_database].add_shift(location = st.session_state.active_location,time_block = other_time_block,name = n)
+      first_half_loc = st.session_state[db].get_shift_location(time_block = main_time_block,name = n)
+      if allocation_size[0] == "002": # for full time block allocation
+            allocation_state2 = st.session_state[db].is_shift_allocated(other_time_block, name = n)
+            second_half_loc = st.session_state[db].get_shift_location(time_block = other_time_block,name = n)
+            
+            if allocation_size[1] == 1: # check for custom time block removal/allocation from undo/redo call stack
+                  st.session_state[db].add_shift(location = allocation_size[2],time_block = main_time_block,name = n)
+                  st.session_state[db].add_shift(location =allocation_size[3], time_block = other_time_block,name = n)
+                        
+                  return n,1,first_half_loc,second_half_loc # to store in redo stack the previous state
             else:
-                  st.session_state[st.session_state.active_database].remove_shift(time_block = other_time_block,name = n)
+                  pass
 
-def allocate_all(hour):
-      for n in st.session_state.active_name:
-            allocate_shift(n,hour)
+
+            allocate_both = [allocation_state1,allocation_state2]
+            both_same_loc = first_half_loc == second_half_loc
+
+            if all(allocate_both) and both_same_loc : #if both allocated, and both same location, deallocate to both
+                  st.session_state[db].remove_shift(time_block = main_time_block,name = n) 
+                  st.session_state[db].remove_shift(time_block = other_time_block,name = n)
+                  return n,1,first_half_loc,second_half_loc
+                  
+            else: #if at least on half not allocated, allocated to both using same current location (previous location overriden)
+                  allocation_portion = [False,False]
+
+                  if (not allocate_both[0]) or (first_half_loc != loc) : # first half not allocated, or first half different location
+                        st.session_state[db].add_shift(location = loc,time_block = main_time_block,name = n)
+                        allocation_portion[0] = True
+                  if (not allocate_both[1]) or (second_half_loc != loc):
+                        st.session_state[db].add_shift(location = loc,time_block = other_time_block,name = n)
+                        allocation_portion[1] = True
+                  
+                  # return state to store in call_stack
+                  return n,1,first_half_loc,second_half_loc
+                  
+      
+
+      else: # for half time block allocation
+            if allocation_size[1] == 1:
+                  loc = allocation_size[2] # set custom location if function call is from undo/redo
+
+            if not allocation_state1: #if shift not allocated, allocate shift
+                  st.session_state[db].add_shift(location = loc,time_block = main_time_block,name = n)
+            else: 
+                  st.session_state[db].remove_shift(time_block = main_time_block,name = n)
+            
+            return n,1,first_half_loc,0    
+
+def allocate_all(hour,a_size,names = st.session_state.active_name,db = None,loc = None,update_stacks = "default",custom_allocation = None):
+      allocation_size = {} #[a_size, int, location1,location2] last 3 variables are for full shift allocation tracking
+      active_database = st.session_state.active_database
+      active_location = st.session_state.active_location
+
+      if db != None:
+            active_database = db
+      
+      update_LUD(active_database=active_database)
+
+      if loc != None:
+            active_location = loc
+      if custom_allocation != None:
+            allocation_size = custom_allocation # in case we pass in custom dict with specific allocation for each person
+      else:
+            for n in names:
+                  allocation_size[n] = a_size # convert to dict format
+      allocation_size_tracker = {}
+      for n in names:
+            name,i,first_loc,second_loc = allocate_shift(n,hour,allocation_size=allocation_size[n],db=active_database,loc=active_location)
+            allocation_size_tracker[name] = [allocation_size[name][0],i,first_loc,second_loc] # update dictionary
+      if update_stacks in ["undo","default"]:
+            st.session_state.undo_stack.append(("allocate_all",{"db":active_database,"hour":hour,"names":names,"a_size":a_size,"loc":active_location,"allocation_size_tracker":allocation_size_tracker}))
+            if update_stacks == "default":
+                  st.session_state.redo_stack = [] #reset redo stack
+      elif update_stacks == "redo":
+            st.session_state.redo_stack.append(("allocate_all",{"db":active_database,"hour":hour,"names":names,"a_size":a_size,"loc":active_location,"allocation_size_tracker":allocation_size_tracker}))
+
 
 def create_button_group():
     #set the time ranges first
@@ -199,14 +412,14 @@ def create_button_group():
     
     #create the buttons:
     n_buttons = len(time_range)
-    buttons,_ = st.columns([0.99,0.01])
-    cols = buttons.columns(n_buttons)
+    cols = st.columns(n_buttons)
     for n in range(n_buttons):
           with cols[n]:
-                st.button(label=time_range[n],use_container_width=True,on_click=allocate_all,kwargs={"hour":time_range[n][:2]})
+                st.button(label=time_range[n],use_container_width=True,on_click=allocate_all,kwargs={"hour":time_range[n][:2],"a_size":[st.session_state.active_allocation_size,0]},disabled=st.session_state.active_name == [])
 
-if st.session_state.active_name != []:
-      create_button_group()
+create_button_group()
+
+
 
 #displaying dataframes
 def format_keys(df1,df2):
@@ -225,7 +438,9 @@ def format_keys(df1,df2):
         # we join the time slots only if 
         #1) no slots allocated at all in that 1h block
         #2) slots are allocated to the same person in that 1h block
-        joined_df = df1.merge(df2)
+        joined_df = df1
+        if df2 is not None:
+              joined_df = df1.merge(df2)
         for i in range(0,len(joined_df),2):
             #get two rows at a time
             rows = joined_df.iloc[i:i+2]
@@ -244,23 +459,62 @@ def format_keys(df1,df2):
                 joined.append(False)
 
 
-        return keys, joined
+        return (keys, joined)
+
+#session states which cache the formatted dataframes
+if "d1MCC_df" not in st.session_state:
+      st.session_state.d1MCC_df = None
+if "d1HCC1_df" not in st.session_state:
+      st.session_state.d1HCC1_df = None
+if "d2MCC_df" not in st.session_state:
+      st.session_state.d2MCC_df = None
+if "d2HCC1_df" not in st.session_state:
+      st.session_state.d2HCC1_df = None
+if "nightduty_df" not in st.session_state:
+      st.session_state.nightduty_df = None
+
 
 
 def displayd1_grid():
       if not st.session_state.hided1_grid:
-            k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
-            st.data_editor(st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
-            st.data_editor(st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled = True)
+            if st.session_state.last_updated_day in [1,4]: #if day updated, redraw dataframes, and update the cache
+                  k,j = format_keys(st.session_state["💀DAY 1: MCC"].data,st.session_state["😴DAY 1: HCC1"].data)
+                  st.session_state.d1MCC_df = st.session_state["💀DAY 1: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner)
+                  st.session_state.d1HCC1_df = st.session_state["😴DAY 1: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner)
+
+            with st.container():
+                  st.data_editor(st.session_state.d1MCC_df,hide_index=True,use_container_width=True,disabled=True)
+                  st.data_editor(st.session_state.d1HCC1_df,hide_index=True,use_container_width=True,disabled=True)
 
 displayd1_grid()
 
 
 def displayd2_grid():
       if not st.session_state.hided2_grid:
-            k,j = format_keys(st.session_state["💀DAY 2: MCC"].data,st.session_state["😴DAY 2: HCC1"].data)
-            st.data_editor(st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
-            st.data_editor(st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner),hide_index=True,use_container_width=True,disabled=True)
+            if st.session_state.last_updated_day in [2,4]:
+                  k,j = format_keys(st.session_state["💀DAY 2: MCC"].data,st.session_state["😴DAY 2: HCC1"].data)
+                  st.session_state.d2MCC_df = st.session_state["💀DAY 2: MCC"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner)
+                  st.session_state.d2HCC1_df = st.session_state["😴DAY 2: HCC1"].generate_formatted_df(keys = k, joined = j,check_lunch_dinner = st.session_state.check_lunch_dinner)
+            with st.container():
+                  if st.session_state.d2start07:
+                        #check if 0600 block is empty or all unfilled
+                        mcc_0600 =  st.session_state.d2MCC_df.data["06:00"].empty or (st.session_state.d2MCC_df.data["06:00"] == "0   ").all()
+                        hcc1_0600 = st.session_state.d2HCC1_df.data["06:00"].empty or (st.session_state.d2HCC1_df.data["06:00"] == "0   ").all()
+                        if "06:30" in st.session_state.d2MCC_df.data.columns:
+                              mcc_0600 = False
+                        if "06:30" in st.session_state.d2MCC_df.data.columns:
+                              hcc1_0600 = False
+                        if all([mcc_0600,hcc1_0600]):
+                              col_order_mcc = st.session_state.d2MCC_df.data.columns.to_list()
+                              col_order_mcc.remove("06:00")
+                              col_order_hcc1 = st.session_state.d2HCC1_df.data.columns.to_list()
+                              col_order_hcc1.remove("06:00")
+                              st.data_editor(st.session_state.d2MCC_df,hide_index=True,use_container_width=True,column_order=col_order_mcc,disabled=True)
+                              st.data_editor(st.session_state.d2HCC1_df,hide_index=True,use_container_width=True,column_order=col_order_hcc1,disabled=True)
+                              return
+
+                  st.data_editor(st.session_state.d2MCC_df,hide_index=True,use_container_width=True,disabled=True)
+                  st.data_editor(st.session_state.d2HCC1_df,hide_index=True,use_container_width=True,disabled=True)
       
 displayd2_grid()
 
@@ -268,13 +522,18 @@ bottom_col1,bottom_col2 = st.columns([0.2,0.8])
 
 def displayd3_grid():
       if not st.session_state.hided3_grid:
-            bottom_col2.data_editor(st.session_state["NIGHT DUTY"].generate_formatted_df(),hide_index=True,use_container_width=True,disabled=True)
+            if st.session_state.last_updated_day in [3,4]:
+                  k,j = format_keys(st.session_state["NIGHT DUTY"].data,None)
+                  st.session_state.nightduty_df = st.session_state["NIGHT DUTY"].generate_formatted_df(keys = k,joined = j)
+            with st.empty():
+                  bottom_col2.data_editor(st.session_state.nightduty_df,hide_index=True,use_container_width=True,disabled=True)
 
-displayd3_grid()  
+displayd3_grid()
+
 
 #hour counter
 def display_hours():
-      hours = {} 
+      hours = {}
       d1MCC = st.session_state["💀DAY 1: MCC"].hours
       d1HCC1 = st.session_state["😴DAY 1: HCC1"].hours
       d2MCC = st.session_state["💀DAY 2: MCC"].hours
@@ -311,17 +570,16 @@ def display_hours():
       df = df.sort_values(by=["TOTAL"],ascending=False)
       df.loc[" TOTAL  "] = df.sum() # add whitespace so this row will always be either first or last in sorting
       
+      
       return df
 
 hour_count = display_hours()
-
 st.session_state.hour_count_on_sidebar = st.sidebar.toggle(label="Display hour count on sidebar",value=True)
 if st.session_state.hour_count_on_sidebar:
-      st.sidebar.dataframe(hour_count,use_container_width=True,)
+      st.sidebar.dataframe(hour_count,use_container_width=True,height=(len(hour_count)+1)*35 + 3)
       bottom_col1.header("NIGHT DUTY")
 else:     
       bottom_col1.dataframe(hour_count,use_container_width=True)
-
 st.sidebar.divider()
 #uploading and downloading files
 
@@ -349,7 +607,20 @@ def extract_and_read_csv(zip_file):
 
     return dfs
 
+def create_zip():
+      #takes all dataframes from each database, convert to csv, store as zip file
 
+      buf = io.BytesIO()
+      with zipfile.ZipFile(buf, "x") as myzip: # set the mode parameter to x to create and write a new file
+            myzip.writestr("DAY1MCC.csv", st.session_state["💀DAY 1: MCC"].data.to_csv()) # convert df to .csv and name it
+            myzip.writestr("DAY1HCC1.csv", st.session_state["😴DAY 1: HCC1"].data.to_csv()) 
+            myzip.writestr("DAY2MCC.csv", st.session_state["💀DAY 2: MCC"].data.to_csv()) 
+            myzip.writestr("DAY2HCC1.csv", st.session_state["😴DAY 2: HCC1"].data.to_csv())
+            myzip.writestr("NIGHTDUTY.csv",st.session_state["NIGHT DUTY"].data.to_csv())
+
+      return buf
+
+st.sidebar.download_button(label="Download zip",data=create_zip().getvalue(),file_name="Planning.zip",mime="data/zip",use_container_width=True)
 st.session_state.zip_file = st.sidebar.file_uploader(label="Upload zip of saved work",type="zip")
 
 if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_upload:
@@ -373,25 +644,72 @@ if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_u
     st.session_state.D1Names = st.session_state.namesd1MCC.union(st.session_state.namesd1HCC1)
     st.session_state.D2Names = st.session_state.namesd2MCC.union(st.session_state.namesd2HCC1)
     st.session_state.D3Names = st.session_state.namesd3.copy()
+    st.session_state.name_pool = (st.session_state.D1Names.union(st.session_state.D2Names)).union(st.session_state.D3Names)
     st.session_state.has_rerun_on_upload = True
+    st.session_state.last_updated_day = 4
     st.rerun()
 
-def create_zip():
-      #takes all dataframes from each database, convert to csv, store as zip file
-
-      buf = io.BytesIO()
-      with zipfile.ZipFile(buf, "x") as myzip: # set the mode parameter to x to create and write a new file
-            myzip.writestr("DAY1MCC.csv", st.session_state["💀DAY 1: MCC"].data.to_csv()) # convert df to .csv and name it
-            myzip.writestr("DAY1HCC1.csv", st.session_state["😴DAY 1: HCC1"].data.to_csv()) 
-            myzip.writestr("DAY2MCC.csv", st.session_state["💀DAY 2: MCC"].data.to_csv()) 
-            myzip.writestr("DAY2HCC1.csv", st.session_state["😴DAY 2: HCC1"].data.to_csv())
-            myzip.writestr("NIGHTDUTY.csv",st.session_state["NIGHT DUTY"].data.to_csv())
-
-      return buf
 
 
-st.sidebar.download_button(label="Download zip",data=create_zip().getvalue(),file_name="Planning.zip",mime="data/zip",use_container_width=True)
+#UNDO AND REDO
+def execute_undo():
+      if st.session_state.undo_stack == []: # in case of double button click causing call on empty list
+            return
+      action = st.session_state.undo_stack.pop() # pop last executed function
 
+      if action[0] == "add_name": # we remove name
+            parameters = action[1]
+            for n in parameters.keys():
+                  remove_name(name_list=list(parameters.keys()),update_stacks="redo",db=parameters[n]["db"])
+                  return #only need to call once since all names are removed from same db
+      elif action[0] == "remove_name": # we add name
+            parameters = action[1]["params"]
+            # for n in parameters.keys():
+            #       add_name(name=[n],update_stacks="redo", db=action[1]['db'],hours=parameters[n]["hours"],shifts = parameters[n]["data"])
+
+            add_name(name=list(parameters.keys()),update_stacks="redo",db=action[1]["db"],restore=parameters)
+
+      elif action[0] == "rename_all": #reverse renaming process
+            parameters = action[1]
+            rename_all(new_name=parameters["old_name"],old_name=parameters["new_name"], update_stacks="redo")
+      
+      elif action[0] == "allocate_all":
+            parameters = action[1]
+            allocate_all(hour=parameters["hour"],names=parameters["names"],db=parameters["db"],a_size=parameters["a_size"],loc=parameters["loc"],update_stacks="redo",custom_allocation=parameters["allocation_size_tracker"])
+      
+      elif action[0] == "swap_names":
+            parameters = action[1]
+            swap_names(names=parameters["names"],day_for_swapping=parameters["day_for_swapping"],update_stacks="redo")
+
+def execute_redo():
+      if st.session_state.redo_stack == []: # incase off double button click causing call on empty list
+            return
+      action = st.session_state.redo_stack.pop()
+
+      if action[0] == "add_name":
+            parameters = action[1]['params']
+            # for n in parameters.keys():
+            #       add_name(name=[n],update_stacks="undo", db=action[1]['db'],hours=parameters[n]["hours"],shifts = parameters[n]["data"])
+            add_name(name=None,db=action[1]["db"],restore=parameters,update_stacks="undo")
+      if action[0] == "remove_name":
+            parameters = action[1]
+            remove_name(name_list=parameters["name"],update_stacks="undo",db=parameters["db"])
+      elif action[0] == "rename_all": #reverse renaming process
+            parameters = action[1]
+            rename_all(new_name=parameters["old_name"],old_name=parameters["new_name"], update_stacks="undo")
+      elif action[0] == "allocate_all":
+            parameters = action[1]
+            allocate_all(hour=parameters["hour"],names=parameters["names"],db=parameters["db"],a_size=parameters["a_size"],loc=parameters["loc"],update_stacks="undo",custom_allocation=parameters["allocation_size_tracker"])
+
+      elif action[0] == "swap_names":
+            parameters = action[1]
+            swap_names(names=parameters["names"],day_for_swapping=parameters["day_for_swapping"],update_stacks="undo")
+      
+undo_col,redo_col = st.sidebar.columns(2)
+undo_col.button("UNDO",use_container_width=True,on_click=execute_undo,disabled= st.session_state.undo_stack == [])
+redo_col.button("REDO",use_container_width=True,on_click=execute_redo,disabled= st.session_state.redo_stack == [])
+
+#shift validation
 day1warnings,day2warnings,day3warnings,validation_options = st.columns((.3,.3,.3,.1))
 
 def validate_shifts(df1,df2,day):
