@@ -1,0 +1,11 @@
+[project]
+name = "ns-shift-planner"
+version = "0.1.0"
+description = "NS Shift Planner web app based on Streamlit"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas==2.2.3",
+    "st-btn-group==0.0.11",
+    "streamlit==1.40.0",
+]
