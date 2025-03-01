@@ -17,9 +17,9 @@
       ]
     }
   },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
+  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f uv.lock ] && uv sync; echo '✅ Packages installed and Requirements met'",
   "postAttachCommand": {
-    "server": "streamlit run main.py --server.enableCORS false --server.enableXsrfProtection false"
+    "server": "uv run streamlit run main.py --server.enableCORS false --server.enableXsrfProtection false"
   },
   "portsAttributes": {
     "8501": {
@@ -29,5 +29,8 @@
   },
   "forwardPorts": [
     8501
-  ]
+  ],
+  "features": {
+    "ghcr.io/va-h/devcontainers-features/uv:1": {}
+  }
 }
