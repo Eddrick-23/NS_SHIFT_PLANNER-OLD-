@@ -51,6 +51,10 @@ if "namesd1HCC1" not in st.session_state:
     st.session_state.namesd1HCC1 = set()
 if "namesd2HCC1" not in st.session_state:
     st.session_state.namesd2HCC1 = set()
+if "namesd1HCC2" not in st.session_state:
+    st.session_state.namesd1HCC2 = set()
+if "namesd2HCC2" not in st.session_state:
+    st.session_state.namesd2HCC2 = set()
 if "namesd3" not in st.session_state:
     st.session_state.namesd3 = set()
 
@@ -58,10 +62,14 @@ if "💀DAY 1: MCC" not in st.session_state:
     st.session_state["💀DAY 1: MCC"] = database(location="MCC ", day=1)
 if "😴DAY 1: HCC1" not in st.session_state:
     st.session_state["😴DAY 1: HCC1"] = database(location="HCC1", day=1)
+if "😴DAY 1: HCC2" not in st.session_state:
+      st.session_state["😴DAY 1: HCC2"] = database(location="HCC2",day=1)
 if "💀DAY 2: MCC" not in st.session_state:
     st.session_state["💀DAY 2: MCC"] = database(location="MCC ", day=2)
 if "😴DAY 2: HCC1" not in st.session_state:
     st.session_state["😴DAY 2: HCC1"] = database(location="HCC1", day=2)
+if "😴DAY 2: HCC2" not in st.session_state:
+    st.session_state["😴DAY 2: HCC2"] = database(location="HCC2",day=2)
 if "NIGHT DUTY" not in st.session_state:
     st.session_state["NIGHT DUTY"] = database(location="MCC ", day=3)
 

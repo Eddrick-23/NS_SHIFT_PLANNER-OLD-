@@ -8,7 +8,7 @@ class database():
     def __init__(self, location,day,use_default=True,data=None):
         '''
             location(str):
-                location of mount. Can be MCC or HCC1
+                location of mount. Can be MCC, HCC1 or HCC2
             day(int):
                 1 or 2. Affects the timeblocks indexing. day 2 starts from 0600 instead of 0700
         '''
@@ -52,6 +52,8 @@ class database():
                     total_hours += freq["MCC "] * 0.5
                 if "HCC1" in freq:
                     total_hours += freq["HCC1"] * 0.5
+                if "HCC2" in freq:
+                    total_hours += freq["HCC2"] * 0.5
                 
                 self.hours[c] = total_hours
 
@@ -134,13 +136,13 @@ class database():
     def add_shift(self, location, time_block, name):
         '''
             location(str):
-                "MCC" or "HCC1"
+                "MCC" or "HCC1" or "HCC2"
             time_block(str):
                 str in "HH:MM:SS" Format. In 30 min intervals
             name(str):
                 name of person. Must already exist in column
         '''
-        if self.day == 3 and location == "HCC1":
+        if self.day == 3 and location != "MCC ":
             location = "MCC " #default location for night duty
         
         if not self.is_shift_allocated(time_block=time_block,name=name): #update hours only if shift previously not allocated, else just replace loc
@@ -241,7 +243,7 @@ class database():
         
         for col in s.columns:
             for row in range(len(s)):
-                if s[col][row] == "MCC " or s[col][row] == "HCC1" :
+                if s[col][row] == "MCC " or s[col][row] == "HCC1" or s[col][row] == "HCC2":
                     styles.at[row,col] = 'background-color: green;'
                 
                 # elif names_to_highlight != None and s[col][row] in names_to_highlight:
