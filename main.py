@@ -859,13 +859,15 @@ if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_u
     st.session_state["😴DAY 2: HCC1"].set_data(
         dataframes["DAY2HCC1.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd2HCC1 = st.session_state["😴DAY 2: HCC1"].names
-    #HCC2
-    st.session_state["😴DAY 1: HCC2"].set_data(
-        dataframes["DAY1HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
-    st.session_state.namesd1HCC2 = st.session_state["😴DAY 1: HCC2"].names
-    st.session_state["😴DAY 2: HCC2"].set_data(
-        dataframes["DAY2HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
-    st.session_state.namesd2HCC2 = st.session_state["😴DAY 2: HCC2"].names
+    #HCC2 
+    if "😴DAY 1: HCC2" in dataframes.keys(): #check for reverse compatibility with old csv files
+        st.session_state["😴DAY 1: HCC2"].set_data(
+            dataframes["DAY1HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
+        st.session_state.namesd1HCC2 = st.session_state["😴DAY 1: HCC2"].names
+    if "😴DAY 2: HCC2" in dataframes.keys():
+        st.session_state["😴DAY 2: HCC2"].set_data(
+            dataframes["DAY2HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
+        st.session_state.namesd2HCC2 = st.session_state["😴DAY 2: HCC2"].names
     #NIGHT DUTY
     st.session_state["NIGHT DUTY"].set_data(
         dataframes["NIGHTDUTY.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
@@ -1005,9 +1007,9 @@ def validate_shifts(df1, df2, day):
     return result
 
 
-day1warnings.text(f"DAY 1: {hour_count['DAY 1'].iloc[-1]}/56")
-day2warnings.text(f"DAY 2: {hour_count['DAY 2'].iloc[-1]}/60")
-day3warnings.text(f"DAY 3: {hour_count['DAY 3'].iloc[-1]}/21")
+day1warnings.text(f"DAY 1: {hour_count['DAY 1'].iloc[-1]}/56.0")
+day2warnings.text(f"DAY 2: {hour_count['DAY 2'].iloc[-1]}/60.0")
+day3warnings.text(f"DAY 3: {hour_count['DAY 3'].iloc[-1]}/21.0")
 st.session_state.ignore_overallocation = validation_options.checkbox(
     label="ignore overallocation")
 
