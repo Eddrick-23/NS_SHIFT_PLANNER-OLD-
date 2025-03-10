@@ -203,8 +203,9 @@ def remove_name(name_list, update_stacks="default", db=None):
 
 
 # sidebar
-st.session_state.db_to_update = st.sidebar.radio("Database", options=[
-                                                 "💀DAY 1: MCC", "😴DAY 1: HCC1", "💀DAY 2: MCC", "😴DAY 2: HCC1", "NIGHT DUTY"], key="sidebaractivedb", horizontal=True)
+options=["💀DAY 1: MCC", "💀DAY 2: MCC", "😴DAY 1: HCC1", "😴DAY 2: HCC1","😴DAY 1: HCC2", "😴DAY 2: HCC2", "NIGHT DUTY"]
+st.session_state.db_to_update = st.sidebar.selectbox("database",options)
+
 
 sidebar_col11, sidebar_col12 = st.sidebar.columns(2)
 
@@ -256,7 +257,7 @@ def rename_all(new_name, old_name, update_stacks="default"):
             st.session_state[d].remove(old_name)
             st.session_state[d].add(new_name)
     # update individual databases
-    for db in ["💀DAY 1: MCC", "😴DAY 1: HCC1", "💀DAY 2: MCC", "😴DAY 2: HCC1", "NIGHT DUTY"]:
+    for db in ["💀DAY 1: MCC", "😴DAY 1: HCC1", "😴DAY 1: HCC2", "💀DAY 2: MCC", "😴DAY 2: HCC1", "😴DAY 2: HCC2", "NIGHT DUTY"]:
         if old_name in st.session_state[db].get_names():
             st.session_state[db].rename(new_name, old_name)
 
@@ -284,14 +285,43 @@ st.sidebar.button(label="Rename", on_click=rename_all, kwargs={
 st.sidebar.divider()
 
 
-def name_in_same_database(names, database):
+def name_in_same_database(names:list[str], database:database):
+    '''
+        Helper function for swap_names()
+        Checks if the pair of names are in the same given database
+
+        Returns:
+        1) bool:    True if both names in database
+                    False if both names not in database
+        2) str:     The name that is not in the database
+    '''
     db_names = database.get_names()
     if names[0] in db_names and names[1] in db_names:
         return True  # returns True if both names in current database
-    else:  # returns the name that is not in the database
+    else:  # returns the name that is not in the database, or False if both names not in database
+        if names[0] not in db_names and names[1] not in db_names:
+            return False
         for n in names:
             if n not in db_names:
                 return n
+def swap_names_different_db(var_list,databases):
+    '''
+        Helper function for swap_names()
+        performs swap of names belonging to different databases
+    '''
+    #get the two databases that we want to swap, the database with no name will have variable = False
+    num_list = [0,1,2]
+    num_list.remove(var_list.index(False))
+
+    #num_list will contain the idx position of the names and their corresponding current database in databases
+    db_name1 = databases[num_list[0]]
+    db_name2 = databases[num_list[1]]
+
+    #perform swap
+    db_name1.rename(new_name = var_list[num_list[0]], old_name = var_list[num_list[1]])
+    db_name2.rename(new_name = var_list[num_list[1]], old_name = var_list[num_list[0]])
+
+    
 
 
 def swap_names(names, day_for_swapping=None, update_stacks="default"):
@@ -305,19 +335,23 @@ def swap_names(names, day_for_swapping=None, update_stacks="default"):
     else:
         mcc_db = st.session_state[f"💀DAY {day}: MCC"]
         hcc1_db = st.session_state[f"😴DAY {day}: HCC1"]
+        hcc2_db = st.session_state[f"😴DAY {day}: HCC2"]
 
         mcc_check = name_in_same_database(names, database=mcc_db)
         hcc1_check = name_in_same_database(names, database=hcc1_db)
+        hcc2_check = name_in_same_database(names, database =hcc2_db)
         # case 1 both names in mcc_db
         if mcc_check == True:
             mcc_db.swap_names(names[0], names[1])
         # case 2 both names in hcc1_db
         elif hcc1_check == True:
             hcc1_db.swap_names(names[0], names[1])
-        # case 3 both names in different database
+        # case 3 both names in hcc2_db
+        elif hcc2_check == True:
+            hcc2_db.swap_names(names[0], names[1])
+        # case 4 both names in different database
         else:
-            mcc_db.rename(new_name=mcc_check, old_name=hcc1_check)
-            hcc1_db.rename(new_name=hcc1_check, old_name=mcc_check)
+            swap_names_different_db([mcc_check,hcc1_check,hcc2_check],[mcc_db,hcc1_db,hcc2_db])
 
     if update_stacks in ["default", "undo"]:
         st.session_state.undo_stack.append(
@@ -357,15 +391,23 @@ st.session_state.hided3_grid = st.sidebar.toggle(
 col1, col2 = st.columns(2)
 
 with col1:
-    st.session_state.active_database = st.radio(label="Database", options=[
-                                                "💀DAY 1: MCC", "😴DAY 1: HCC1", "💀DAY 2: MCC", "😴DAY 2: HCC1", "NIGHT DUTY"], horizontal=True)
+    buttons = [
+    {"label": "💀DAY 1: MCC" , "value" : "💀DAY 1: MCC"},
+    {"label" : "😴DAY 1: HCC1", "value" : "😴DAY 1: HCC1"},
+    {"label" : "😴DAY 1: HCC2", "value" : "😴DAY 1: HCC2"},
+    {"label": "💀DAY 2: MCC" , "value" : "💀DAY 2: MCC"},
+    {"label" : "😴DAY 2: HCC1", "value" : "😴DAY 2: HCC1"},
+    {"label" : "😴DAY 2: HCC2", "value" : "😴DAY 2: HCC2"},
+    {"label" : "NIGHT DUTY", "value" : "NIGHT DUTY"}
+    ]
+    st.session_state.active_database = st_btn_group(mode="radio", buttons = buttons, merge_buttons = True, size = "compact", radio_default_index = 0)
     st.session_state.active_name = st.multiselect(
         label="Name(s)", options=st.session_state[st.session_state.active_database].get_names())
 with col2:
     st.session_state.active_allocation_size = st_btn_group(mode="radio", buttons=[{"label": "First 30 min", "value": "001"}, {"label": "Full", "value": "002"}, {
                                                            "label": "Last 30 min", "value": "30"}], key="allocation_size", merge_buttons=True, size="compact", radio_default_index=1)
-    st.session_state.active_location = st.radio(label="Location", options=[
-                                                "MCC ", "HCC1"])  # whitespace after MCC for standard cell size
+    st.session_state.active_location = st.pills(label="Location", options=[
+                                                "MCC ", "HCC1","HCC2"], default = "MCC ")  # whitespace after MCC for standard cell size
 # button groups
 
 
@@ -489,7 +531,7 @@ def create_button_group():
     time_range = ["06", "07", "08", "09", "10", "11", "12",
                   "13", "14", "15", "16", "17", "18", "19", "20"]
     # if day 1, remove 0600
-    if st.session_state.active_database in ["💀DAY 1: MCC", "😴DAY 1: HCC1"]:
+    if st.session_state.active_database in ["💀DAY 1: MCC", "😴DAY 1: HCC1","😴DAY 1: HCC2"]:
         default_day_range.pop(0)
     if st.session_state.active_allocation_size in ["001", "002"]:
         time_range = [item + "00" for item in default_day_range]
@@ -503,22 +545,23 @@ def create_button_group():
     for n in range(n_buttons):
         with cols[n]:
             st.button(label=time_range[n], use_container_width=True, on_click=allocate_all, kwargs={"hour": time_range[n][:2], "a_size": [
-                      st.session_state.active_allocation_size, 0]}, disabled=st.session_state.active_name == [])
+                      st.session_state.active_allocation_size, 0]}, disabled=(st.session_state.active_name == [] or st.session_state.active_location is None))
 
 
 create_button_group()
 
 
 # displaying dataframes
-def format_keys(df1, df2):
+def format_keys(df1, df2, df3=None):
     '''
         df1(pandas dataframe)
         df2(pandas dataframe)
+        df3(pandas dataframe)|None , HCC2 not always used
 
         dataframes should have the same format. Merging the dataframes will just join the names.
         The "DAY" and "Time" Columns should be the same.
 
-        This function reads two dataframes and returns formatted timeblocks that fit both dataframes. Such that they are always aligned.
+        This function reads multiple dataframes and returns formatted timeblocks that fit all dataframes. Such that they are always aligned.
     '''
     keys = []
     joined = []
@@ -529,11 +572,19 @@ def format_keys(df1, df2):
     joined_df = df1
     if df2 is not None:
         joined_df = df1.merge(df2)
+    if df3 is not None:
+        joined_df = df1.merge(df3)
+    r = joined_df.iloc[0:2]
+    # # print(r.columns[2:])
+    # print(r)
+    # print(r["TEST"].iloc[0])
+    # print(r["TEST"].iloc[1])
+
     for i in range(0, len(joined_df), 2):
         # get two rows at a time
         rows = joined_df.iloc[i:i+2]
         join_blocks = True
-        for c in rows.columns[2:]:
+        for c in rows.columns[2:]: #for each col, check if every 1h timeblock needs splitting
             v1, v2 = rows[c].iloc[0], rows[c].iloc[1]
 
             if v1 != v2:
@@ -555,10 +606,14 @@ if "d1MCC_df" not in st.session_state:
     st.session_state.d1MCC_df = None
 if "d1HCC1_df" not in st.session_state:
     st.session_state.d1HCC1_df = None
+if "d1HCC2_df" not in st.session_state:
+    st.session_state.d1HCC2_df = None
 if "d2MCC_df" not in st.session_state:
     st.session_state.d2MCC_df = None
 if "d2HCC1_df" not in st.session_state:
     st.session_state.d2HCC1_df = None
+if "d2HCC2_df" not in st.session_state:
+    st.session_state.d2HCC2_df = None
 if "nightduty_df" not in st.session_state:
     st.session_state.nightduty_df = None
 
@@ -568,16 +623,21 @@ def displayd1_grid():
         # if day updated, redraw dataframes, and update the cache
         if st.session_state.last_updated_day in [1, 4]:
             k, j = format_keys(
-                st.session_state["💀DAY 1: MCC"].data, st.session_state["😴DAY 1: HCC1"].data)
+                st.session_state["💀DAY 1: MCC"].data, st.session_state["😴DAY 1: HCC1"].data, st.session_state["😴DAY 1: HCC2"].data)
             st.session_state.d1MCC_df = st.session_state["💀DAY 1: MCC"].generate_formatted_df(
                 keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
             st.session_state.d1HCC1_df = st.session_state["😴DAY 1: HCC1"].generate_formatted_df(
+                keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
+            st.session_state.d1HCC2_df = st.session_state["😴DAY 1: HCC2"].generate_formatted_df(
                 keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
 
         with st.container():
             st.data_editor(st.session_state.d1MCC_df, hide_index=True,
                            use_container_width=True, disabled=True)
             st.data_editor(st.session_state.d1HCC1_df, hide_index=True,
+                           use_container_width=True, disabled=True)
+            if len(st.session_state["😴DAY 1: HCC2"].get_names()) > 0:
+                st.data_editor(st.session_state.d1HCC2_df, hide_index=True,
                            use_container_width=True, disabled=True)
 
 
@@ -588,10 +648,12 @@ def displayd2_grid():
     if not st.session_state.hided2_grid:
         if st.session_state.last_updated_day in [2, 4]:
             k, j = format_keys(
-                st.session_state["💀DAY 2: MCC"].data, st.session_state["😴DAY 2: HCC1"].data)
+                st.session_state["💀DAY 2: MCC"].data, st.session_state["😴DAY 2: HCC1"].data,st.session_state["😴DAY 2: HCC2"].data)
             st.session_state.d2MCC_df = st.session_state["💀DAY 2: MCC"].generate_formatted_df(
                 keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
             st.session_state.d2HCC1_df = st.session_state["😴DAY 2: HCC1"].generate_formatted_df(
+                keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
+            st.session_state.d2HCC2_df = st.session_state["😴DAY 2: HCC2"].generate_formatted_df(
                 keys=k, joined=j, check_lunch_dinner=st.session_state.check_lunch_dinner)
         with st.container():
             if st.session_state.d2start07:
@@ -600,24 +662,38 @@ def displayd2_grid():
                     st.session_state.d2MCC_df.data["06:00"] == "0   ").all()
                 hcc1_0600 = st.session_state.d2HCC1_df.data["06:00"].empty or (
                     st.session_state.d2HCC1_df.data["06:00"] == "0   ").all()
+                hcc2_0600 = st.session_state.d2HCC2_df.data["06:00"].empty or (
+                    st.session_state.d2HCC2_df.data["06:00"] == "0   ").all()
                 if "06:30" in st.session_state.d2MCC_df.data.columns:
                     mcc_0600 = False
-                if "06:30" in st.session_state.d2MCC_df.data.columns:
+                if "06:30" in st.session_state.d2HCC1_df.data.columns:
                     hcc1_0600 = False
+                if "06:30" in st.session_state.d2HCC2_df.data.columns:
+                    hcc2_0600 = False
+                
                 if all([mcc_0600, hcc1_0600]):
                     col_order_mcc = st.session_state.d2MCC_df.data.columns.to_list()
                     col_order_mcc.remove("06:00")
                     col_order_hcc1 = st.session_state.d2HCC1_df.data.columns.to_list()
                     col_order_hcc1.remove("06:00")
+                    col_order_hcc2 = st.session_state.d2HCC2_df.data.columns.to_list()
+                    col_order_hcc2.remove("06:00")
                     st.data_editor(st.session_state.d2MCC_df, hide_index=True,
                                    use_container_width=True, column_order=col_order_mcc, disabled=True)
                     st.data_editor(st.session_state.d2HCC1_df, hide_index=True,
                                    use_container_width=True, column_order=col_order_hcc1, disabled=True)
+                    if len(st.session_state["😴DAY 2: HCC2"].get_names()) > 0: 
+                        st.data_editor(st.session_state.d2HCC2_df, hide_index=True,
+                                    use_container_width=True, column_order=col_order_hcc2, disabled=True)
+                    
                     return
 
             st.data_editor(st.session_state.d2MCC_df, hide_index=True,
                            use_container_width=True, disabled=True)
             st.data_editor(st.session_state.d2HCC1_df, hide_index=True,
+                           use_container_width=True, disabled=True)
+            if len(st.session_state["😴DAY 2: HCC2"].get_names()) > 0: 
+                st.data_editor(st.session_state.d2HCC2_df, hide_index=True,
                            use_container_width=True, disabled=True)
 
 
@@ -645,8 +721,11 @@ def display_hours():
     hours = {}
     d1MCC = st.session_state["💀DAY 1: MCC"].hours
     d1HCC1 = st.session_state["😴DAY 1: HCC1"].hours
+    d1HCC2 = st.session_state["😴DAY 1: HCC2"].hours
+    
     d2MCC = st.session_state["💀DAY 2: MCC"].hours
     d2HCC1 = st.session_state["😴DAY 2: HCC1"].hours
+    d2HCC2 = st.session_state["😴DAY 2: HCC2"].hours
     nightduty = st.session_state["NIGHT DUTY"].hours
 
     for key, val in d1MCC.items():
@@ -658,12 +737,19 @@ def display_hours():
         if key not in hours:
             hours[key] = [0, 0, 0]
         hours[key][0] = val
-
+    for key, val in d1HCC2.items():
+        if key not in hours:
+            hours[key] = [0, 0, 0]
+        hours[key][0] = val
     for key, val in d2MCC.items():
         if key not in hours:
             hours[key] = [0, 0, 0]
         hours[key][1] = val
     for key, val in d2HCC1.items():
+        if key not in hours:
+            hours[key] = [0, 0, 0]
+        hours[key][1] = val
+    for key, val in d2HCC2.items():
         if key not in hours:
             hours[key] = [0, 0, 0]
         hours[key][1] = val
@@ -735,9 +821,13 @@ def create_zip():
         myzip.writestr(
             "DAY1HCC1.csv", st.session_state["😴DAY 1: HCC1"].data.to_csv())
         myzip.writestr(
+            "DAY1HCC2.csv", st.session_state["😴DAY 1: HCC2"].data.to_csv())
+        myzip.writestr(
             "DAY2MCC.csv", st.session_state["💀DAY 2: MCC"].data.to_csv())
         myzip.writestr(
             "DAY2HCC1.csv", st.session_state["😴DAY 2: HCC1"].data.to_csv())
+        myzip.writestr(
+            "DAY2HCC2.csv", st.session_state["😴DAY 2: HCC2"].data.to_csv())
         myzip.writestr("NIGHTDUTY.csv",
                        st.session_state["NIGHT DUTY"].data.to_csv())
 
@@ -756,26 +846,37 @@ if st.session_state.zip_file is not None and not st.session_state.has_rerun_on_u
     # Extract and read CSV files into DataFrames
     dataframes = extract_and_read_csv(zip_file_bytes)
 
-    # Display the DataFrames
+    # MCC
     st.session_state["💀DAY 1: MCC"].set_data(
         dataframes["DAY1MCC.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd1MCC = st.session_state["💀DAY 1: MCC"].names
     st.session_state["💀DAY 2: MCC"].set_data(
         dataframes["DAY2MCC.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd2MCC = st.session_state["💀DAY 2: MCC"].names
+    # HCC1
     st.session_state["😴DAY 1: HCC1"].set_data(
         dataframes["DAY1HCC1.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd1HCC1 = st.session_state["😴DAY 1: HCC1"].names
     st.session_state["😴DAY 2: HCC1"].set_data(
         dataframes["DAY2HCC1.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd2HCC1 = st.session_state["😴DAY 2: HCC1"].names
+    #HCC2
+    st.session_state["😴DAY 1: HCC2"].set_data(
+        dataframes["DAY1HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
+    st.session_state.namesd1HCC2 = st.session_state["😴DAY 1: HCC2"].names
+    st.session_state["😴DAY 2: HCC2"].set_data(
+        dataframes["DAY2HCC2.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
+    st.session_state.namesd2HCC2 = st.session_state["😴DAY 2: HCC2"].names
+    #NIGHT DUTY
     st.session_state["NIGHT DUTY"].set_data(
         dataframes["NIGHTDUTY.csv"].drop('Unnamed: 0', axis=1).replace(0, "0   "))
     st.session_state.namesd3 = st.session_state["NIGHT DUTY"].names
+
+    #update name pools
     st.session_state.D1Names = st.session_state.namesd1MCC.union(
-        st.session_state.namesd1HCC1)
+        st.session_state.namesd1HCC1.union(st.session_state.namesd1HCC2))
     st.session_state.D2Names = st.session_state.namesd2MCC.union(
-        st.session_state.namesd2HCC1)
+        st.session_state.namesd2HCC1.union(st.session_state.namesd2HCC2))
     st.session_state.D3Names = st.session_state.namesd3.copy()
     st.session_state.name_pool = (st.session_state.D1Names.union(
         st.session_state.D2Names)).union(st.session_state.D3Names)
@@ -905,9 +1006,9 @@ def validate_shifts(df1, df2, day):
     return result
 
 
-day1warnings.text("DAY 1")
-day2warnings.text("DAY 2")
-day3warnings.text("DAY 3")
+day1warnings.text(f"DAY 1: {hour_count['DAY 1'].iloc[-1]}/56")
+day2warnings.text(f"DAY 2: {hour_count['DAY 2'].iloc[-1]}/60")
+day3warnings.text(f"DAY 3: {hour_count['DAY 3'].iloc[-1]}/21")
 st.session_state.ignore_overallocation = validation_options.checkbox(
     label="ignore overallocation")
 
