@@ -206,7 +206,6 @@ def remove_name(name_list, update_stacks="default", db=None):
 options=["💀DAY 1: MCC", "💀DAY 2: MCC", "😴DAY 1: HCC1", "😴DAY 2: HCC1","😴DAY 1: HCC2", "😴DAY 2: HCC2", "NIGHT DUTY"]
 st.session_state.db_to_update = st.sidebar.selectbox("database",options)
 
-
 sidebar_col11, sidebar_col12 = st.sidebar.columns(2)
 
 
@@ -392,10 +391,10 @@ col1, col2 = st.columns(2)
 
 with col1:
     buttons = [
-    {"label": "💀DAY 1: MCC" , "value" : "💀DAY 1: MCC"},
+    {"label": "💀DAY 1: MCC" , "value" : "💀DAY 1: MCC", "style" : {"color": "red"}},
     {"label" : "😴DAY 1: HCC1", "value" : "😴DAY 1: HCC1"},
     {"label" : "😴DAY 1: HCC2", "value" : "😴DAY 1: HCC2"},
-    {"label": "💀DAY 2: MCC" , "value" : "💀DAY 2: MCC"},
+    {"label": "💀DAY 2: MCC" , "value" : "💀DAY 2: MCC", "style" : {"color": "red"}},
     {"label" : "😴DAY 2: HCC1", "value" : "😴DAY 2: HCC1"},
     {"label" : "😴DAY 2: HCC2", "value" : "😴DAY 2: HCC2"},
     {"label" : "NIGHT DUTY", "value" : "NIGHT DUTY"}
