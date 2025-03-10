@@ -32,6 +32,11 @@ Update 1.0.0 (30/12/24)
 - Added option to start day 2 on 0700 hours. This will remove the column for 0600 (Only if no shift is allocated from 0600-0700 hrs)
 - Added option to disable lunch and dinner checking.
 
+Update 1.1.0 (10/03/25)
+- added option for HCC2
+- Algorithm checks do not cover HCC2 allocations as they are not always used, and may not be opened for the entire day.
+- Algorithm checks now display the number of hours allocated compared to the target number of hours. E.g. 56h for Day 1, 60h for Day2, 21h for Day3. (Does not include HCC2 hours, HCC1 and MCC hours only)
+
 ## Notes
 - This website is hosted on the free streamlit community cloud server. The app may go to sleep after a couple minutes of inactivity, **any unsaved work will disappear!**
 - If you are going away from the computer, please [save](#saving-your-work) your progress. Sorry, I'm just a broke CPL 🫡
