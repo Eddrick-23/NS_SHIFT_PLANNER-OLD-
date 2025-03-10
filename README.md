@@ -37,6 +37,9 @@ Update 1.1.0 (10/03/25)
 - Algorithm checks do not cover HCC2 allocations as they are not always used, and may not be opened for the entire day.
 - Algorithm checks now display the number of hours allocated compared to the target number of hours. E.g. 56h for Day 1, 60h for Day2, 21h for Day3. (Does not include HCC2 hours, HCC1 and MCC hours only)
 
+Update 1.1.1(10/03/25)
+- added fix where app shows error for a split second on startup due to session state not being initialised for st.session_state.active_databse
+
 ## Notes
 - This website is hosted on the free streamlit community cloud server. The app may go to sleep after a couple minutes of inactivity, **any unsaved work will disappear!**
 - If you are going away from the computer, please [save](#saving-your-work) your progress. Sorry, I'm just a broke CPL 🫡

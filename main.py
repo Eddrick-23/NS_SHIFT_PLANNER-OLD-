@@ -400,8 +400,11 @@ with col1:
     {"label" : "NIGHT DUTY", "value" : "NIGHT DUTY"}
     ]
     st.session_state.active_database = st_btn_group(mode="radio", buttons = buttons, merge_buttons = True, size = "compact", radio_default_index = 0)
-    st.session_state.active_name = st.multiselect(
-        label="Name(s)", options=st.session_state[st.session_state.active_database].get_names())
+    if st.session_state.active_database == None: #add due to session_state not being initialised fully on startup
+        st.session_state.active_name = None
+    else:
+        st.session_state.active_name = st.multiselect(
+            label="Name(s)", options=st.session_state[st.session_state.active_database].get_names())
 with col2:
     st.session_state.active_allocation_size = st_btn_group(mode="radio", buttons=[{"label": "First 30 min", "value": "001"}, {"label": "Full", "value": "002"}, {
                                                            "label": "Last 30 min", "value": "30"}], key="allocation_size", merge_buttons=True, size="compact", radio_default_index=1)
