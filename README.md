@@ -38,7 +38,10 @@ Update 1.1.0 (10/03/25)
 - Algorithm checks now display the number of hours allocated compared to the target number of hours. E.g. 56h for Day 1, 60h for Day2, 21h for Day3. (Does not include HCC2 hours, HCC1 and MCC hours only)
 
 Update 1.1.1(10/03/25)
-- added fix where app shows error for a split second on startup due to session state not being initialised for st.session_state.active_databse
+- added fix where app shows error for a split second on startup due to session state not being initialised for st.session_state.active_database
+
+Update 1.1.2(14/03/25)
+- fixed bug where undo and redo does not work for night duty shift allocations
 
 ## Notes
 - This website is hosted on the free streamlit community cloud server. The app may go to sleep after a couple minutes of inactivity, **any unsaved work will disappear!**
@@ -46,15 +49,21 @@ Update 1.1.1(10/03/25)
 
 ## How to use
 
-### Adding names to database
+### Adding names to name pool
 - Activate sidebar
-- Select database to update. Type name into input widget
-- Only one name can be added to each day. E.g. The same name cannot be added to Day1:MCC and Day1:HCC1 etc.
+- Open the namepool drop down menu
+- Type name and press add name 
 - **Names are formatted automatically to upper case, and without excess white space**
 
+### Adding names to database
+- Activate sidebar
+- Select database to update. Select name from dropdown widget.
+- Press **submit**
+- Only one name can be added to each day. E.g. The same name cannot be added to Day1:MCC and Day1:HCC1 etc.
+
 ### Removing names from database
-- From the multi select widget above the "remove" button, choose names to remove
-- Click remove to remove name from database
+- From the multi select widget above the **remove** button, choose names to remove
+- Click **remove** to remove name from database
 - Make sure to select the appropriate database to remove from
 
 ### Allocating shift
@@ -76,8 +85,9 @@ Update 1.1.1(10/03/25)
     - At the bottom of the main page there are 3 columns Day 1, Day 2 and Day 3.
     - The validation activates only when all shifts are allocated I.e. Day 1: 56hrs allocated, Day 2: 60 hrs allocated, Day 3: 21hrs allocated.
     - validation checks that there are 2 people mounting in each control centre at the same time. And also at least 3 people for HOTO @ 0600-0700 on day 3.
-- Allowing more than 4 mounting personnel at once
+- Allowing more than 4 mounting personnel at once **OR** more than 2 people in the same control centre
     - clicking the **ignore overallocation** checkbox allows for more than 4 mounting personnel in total (algorithm will not output a warning)
+    - OR allow more than 2 people in the same control centre
     - This allows for cases where new personnel are shadowing and are not counted as strength.
 ### Saving your work
 - Click the **Download Zip** button on the bottom of the sidebar.

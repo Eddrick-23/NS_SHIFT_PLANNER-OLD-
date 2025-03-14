@@ -494,6 +494,7 @@ def allocate_all(hour, a_size, names=st.session_state.active_name, db=None, loc=
     active_database = st.session_state.active_database
     active_location = st.session_state.active_location
 
+
     if db is not None:
         active_database = db
 
@@ -577,10 +578,6 @@ def format_keys(df1, df2, df3=None):
     if df3 is not None:
         joined_df = df1.merge(df3)
     r = joined_df.iloc[0:2]
-    # # print(r.columns[2:])
-    # print(r)
-    # print(r["TEST"].iloc[0])
-    # print(r["TEST"].iloc[1])
 
     for i in range(0, len(joined_df), 2):
         # get two rows at a time

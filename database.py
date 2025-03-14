@@ -142,7 +142,7 @@ class database():
             name(str):
                 name of person. Must already exist in column
         '''
-        if self.day == 3 and location != "MCC ":
+        if self.day == 3 and location not in ["MCC ","0   "]:
             location = "MCC " #default location for night duty
         
         if not self.is_shift_allocated(time_block=time_block,name=name): #update hours only if shift previously not allocated, else just replace loc
