@@ -18,6 +18,8 @@ if "has_read_popup" not in st.session_state:
 
 @st.dialog("READ ME")
 def readme():
+    st.subheader("This project has been revamped at https://ns-planner.onrender.com")
+    st.subheader("Future support will be continued only for the new project, you may continue using this app, but it will not be updated.")
     st.subheader("Please **save** your work if you are going afk for at least 5-7 mins. The app WILL go to sleep and you will lose your progress. \n Sorry I'm too broke to pay for a database to autosave your work :/")
     st.write(
         "Click on the **[download zip]** button to save your work as a zip file")
