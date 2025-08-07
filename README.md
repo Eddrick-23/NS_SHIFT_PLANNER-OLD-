@@ -1,5 +1,11 @@
 # [NS SHIFT PLANNER](https://nsplanner.streamlit.app/)
 
+# Project Revamp Notice!
+
+This Project has been revamped in a new project https://github.com/Eddrick-23/NS-Shift-Planner
+- Future support will continue only for the revamped project
+- This current app will still be kept available
+
 ## Updates
 Update 0.1.0 (13/11/24)
 - Replaced name selection for shift allocation to be a multi select widget
